@@ -1,0 +1,246 @@
+---
+title: "CD additional balanced data exploration markdown"
+author: "Ahsan Ahmad"
+date: "March 2, 2024"
+output: 
+  html_document:
+    number_sections: yes
+    toc: yes
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = FALSE, warning = FALSE)
+```
+
+# Libraries
+
+```{r library}
+library(tidyverse)
+library(psych)
+library(RWeka)
+library(rmarkdown)
+library(scatterplot3d)
+library(caret)
+```
+
+# Import a csv file and changing categorical data to factors
+
+Before proceeding with the analysis, it's essential to set up the working directory and import the data from a CSV file named 'CD_additional_balanced.csv'. This code chunk also inspects the structure of the dataset and converts categorical variables into factors for further analysis.
+
+```{r Set up, data import and inspection}
+
+# Setting up working directory and importing data from a csv file
+
+cloud_wd <- getwd()
+setwd(cloud_wd)
+
+CD_balance <- read.csv(file = "CD_additional_balanced.csv", stringsAsFactors = FALSE)
+str(CD_balance)
+
+# Changing Categorical data to factors
+
+CD_balance$job <- factor(CD_balance$job)
+CD_balance$marital <- factor(CD_balance$marital)
+CD_balance$education <- factor(CD_balance$education)
+CD_balance$default <- factor(CD_balance$default)
+CD_balance$housing <- factor(CD_balance$housing)
+CD_balance$loan <- factor(CD_balance$loan)
+CD_balance$contact <- factor(CD_balance$contact)
+CD_balance$month <- factor(CD_balance$month)
+CD_balance$day_of_week <- factor(CD_balance$day_of_week)
+CD_balance$poutcome <- factor(CD_balance$poutcome)
+CD_balance$y <- factor(CD_balance$y)
+
+# Looking at the structure and summary of the data
+
+str(CD_balance)
+summary(CD_balance)
+
+```
+
+# Data Visualization of important numeric variables
+
+Visualizations such as histograms and boxplots are created to explore the distribution of numeric variables in the dataset. This code chunk generates histograms and boxplots for variables including age, last contact duration, number of contacts this campaign, and number of days after the last contact from the previous campaign. Additionally, deciles for each of these numeric variables are calculated to provide insights into their distribution across the dataset.
+
+```{r histograms, boxplots and deciles}
+
+# histogram of age
+
+CD_balance %>% ggplot() +
+  geom_histogram(aes(x=age),binwidth = 20) +
+  ggtitle("Histogram of Client's Age")
+
+# histogram of duration
+
+CD_balance %>% ggplot() +
+  geom_histogram(aes(x=`duration`),binwidth = 20) +
+  ggtitle("Histogram of Last Contact Duration (in sec)")
+
+# histogram of campaign
+
+CD_balance %>% ggplot() +
+  geom_histogram(aes(x=campaign),binwidth = 20) +
+  ggtitle("Histogram of # of conatcts this campaign")
+
+# histogram of pdays
+
+CD_balance %>% ggplot() +
+  geom_histogram(aes(x=pdays),binwidth = 20) +
+  ggtitle("Histogram of # of days after last contact from previous campaign")
+
+# boxplot of age
+
+CD_balance %>% ggplot(aes(x=age)) +
+  geom_boxplot() +
+  ggtitle("Boxplot of Client's Age")
+
+# boxplot of duration
+
+CD_balance %>% ggplot(aes(x=duration)) +
+  geom_boxplot() +
+  ggtitle("Boxplot of Last Contact Duration (in sec)")
+
+# boxplot of campaign
+
+CD_balance %>% ggplot(aes(x=campaign)) +
+  geom_boxplot() +
+  ggtitle("Boxplot of # of conatcts this campaign")
+
+# boxplot of pdays
+
+CD_balance %>% ggplot(aes(x=pdays)) +
+  geom_boxplot() +
+  ggtitle("Boxplot of # of days after last contact from previous campaign")
+
+# deciles of all four numeric variables
+
+CD_balance %>% pull(age) %>% quantile(., seq(from = 0, to = 1, by = 0.10))
+CD_balance %>% pull(duration) %>% quantile(., seq(from = 0, to = 1, by = 0.10))
+CD_balance %>% pull(campaign) %>% quantile(., seq(from = 0, to = 1, by = 0.10))
+CD_balance %>% pull(pdays) %>% quantile(., seq(from = 0, to = 1, by = 0.10))
+
+```
+
+# Data Exploration of factor variables
+
+Exploring the distribution of factor variables is crucial for understanding the characteristics of the dataset. This code chunk presents the count and percentage values for each factor variable and its levels, including the target variable 'y', marital status, contact type, and outcome of the previous marketing campaign. Additionally, bar plots are generated for each of these factor variables to visualize the distribution of their levels.
+
+```{r Explorating factor variables - y, marital, contact, poutcome}
+
+# Showing the count value and percentage value of each factor and it's levels
+
+CD_balance %>% select(y) %>% table()
+CD_balance %>% select(y) %>% table() %>% prop.table() %>% round(2) * 100
+
+CD_balance %>% select(marital) %>% table()
+CD_balance %>% select(marital) %>% table() %>% prop.table() %>% round(2) * 100
+
+CD_balance %>% select(contact) %>% table()
+CD_balance %>% select(contact) %>% table() %>% prop.table() %>% round(2) * 100
+
+CD_balance %>% select(poutcome) %>% table()
+CD_balance %>% select(poutcome) %>% table() %>% prop.table() %>% round(2) * 100
+
+# Bar plots of each of the 4 selected factor variables
+
+CD_balance %>% ggplot() +
+  geom_bar(aes(x=y),position="dodge") +
+  ggtitle("Barplot of target variable 'y'")
+
+CD_balance %>% ggplot() +
+  geom_bar(aes(x=marital),position="dodge") +
+  ggtitle("Barplot of Marital Status")
+
+CD_balance %>% ggplot() +
+  geom_bar(aes(x=contact),position="dodge") +
+  ggtitle("Barplot of Contact Type")
+
+CD_balance %>% ggplot() +
+  geom_bar(aes(x=poutcome),position="dodge") +
+  ggtitle("Barplot of Outcome of the Previous Marketing Campaign")
+
+```
+
+# Exploratory analysis for multiple variables
+
+This code chunk utilizes correlation analysis, boxplots, and aggregation to explore the relationships among variables. It computes the correlation matrix and displays correlations for seven numeric variables, followed by boxplots of selected variables grouped by the target variable 'y'. Additionally, the code aggregates summary statistics for numeric variables by 'y', providing insights into the distribution of these variables across different categories of the target variable.
+
+```{r Understand variable relationships }
+# Using cor and pairs.panels to compute correlation matrix and display correlations of the listed numeric seven variables
+
+CD_balance %>% select(age, duration, campaign, pdays, euribor3m, emp.var.rate, nr.employed) %>% cor()
+CD_balance %>% select(age, duration, campaign, pdays, euribor3m, emp.var.rate, nr.employed) %>% pairs.panels()
+
+# Boxplot of y by duration
+
+CD_balance %>% 
+  ggplot() +
+  geom_boxplot(aes(x=y,y=`duration`)) +
+  ggtitle('Boxplot of y by duration')
+
+# Boxplot of y by emp.var.rate
+
+CD_balance %>% 
+  ggplot() +
+  geom_boxplot(aes(x=y,y=emp.var.rate)) +
+  ggtitle('Boxplot of y by Employment varaition rate')
+
+# Boxplot of y by cons.price.idx
+
+CD_balance %>% 
+  ggplot() +
+  geom_boxplot(aes(x=y,y=cons.price.idx)) +
+  ggtitle('Boxplot of y by Customer price index')
+
+# Boxplot of y by cons.conf.idx
+
+CD_balance %>% 
+  ggplot() +
+  geom_boxplot(aes(x=y,y=cons.conf.idx)) +
+  ggtitle('Boxplot of y by Customer confidence index')
+
+# Using aggregate command with summary to aggregate the four numeric variables by y
+
+aggregate(duration~y, summary, data = CD_balance)
+aggregate(emp.var.rate~y, summary, data = CD_balance)
+aggregate(cons.price.idx~y, summary, data = CD_balance)
+aggregate(cons.conf.idx~y, summary, data = CD_balance)
+
+```
+
+# Results and Findings
+
+After doing data visualization of the numeric variables the following trends can be seen:
+
+1. age: By looking at the Histogram of 'age' it can be observed that the distribution is not fully normal and is a bit right skewed with most client's being in the age group of 30 to 60. Although after creating a boxplot this range can be shorten as the boxplot shows that 25th to 75th percentiles creates a range in between 30 to 48.
+
+2. duration: The histogram for Last Contact Duration shows a very high right skewed distribution with a lot of high outliers as seen by the boxplot as well.
+
+3. campaign: The histogram shows that most number of contacts for a client this campaign ranged between 0 to 10 and the boxplot further decreases this number to between 1 and 3 contacts apart from quite a few outliers with some that were contacted more than 30 times.
+
+4. pdays: The histogram and boxplots both show a significant number of entries at or around 1000 which is due to the fact that '999' was used as an arbitrary number when that particular customer was not contacted at all all other numbers around 1 are the actual days for customers that were contacted which if seen through the decile distribution accounts for only 10% of customers.
+
+Data Exploration of factor variables provides us with the following insights:
+
+1. y: The histogram shows us an even distribution of yes and no for the target variable showing that this data set does not need imbalance handling and that any model that we create should have an accuracy of more than 50%.
+
+2. marital: The histogram shows that most customers (more than half) in this dataset are married.
+
+3. contact: The histogram depicts that most customers were contacted on their cell rather than on telephone.
+
+4. poutcome: The histogram shows that most customers were not contacted in the previous market campaign and that the success rate of the ones that were conatcted was about 50%.
+
+Exploratory analysis for multiple variables section shows the following results:
+
+1. Correlation Matrix: The correlation matrix shows that the seven numerical variables are not mostly strongly correlated except emp.var.rate with euribor3m and nr.employed with euribor3m both having a strong positive correlation of above 0.94.
+
+2. y by duration: The boxplot of y by duration suggests that customers that were on the call longer had a higher conversion rate i.e. they subscribed a certified term deposit as compare to customers that had shorter duration calls.
+
+3. y by emp.var.rate: The boxplot of y by Employment variation rate suggests that customers with negative emp.var.rate are more likely to subscribe than others but further evaluation is required.
+
+4. y by cons.price.idx: The boxplot of y by Customer price index suggests that conversion rate does not depends on it as the distribution is same for both y = yes and y = no.
+
+5. y by cons.conf.idx: Similarly, the boxplot of y by Customer confidence index suggests that target variable does not depends on it, although it can be suggested that customer with a confidence index of less than -43 are more likely to subscribe.
+
